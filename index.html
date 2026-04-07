@@ -1,0 +1,752 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DevType - Developer Typing Practice</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  :root {
+    --bg: #0d1117;
+    --surface: #161b22;
+    --border: #30363d;
+    --text: #c9d1d9;
+    --text-dim: #8b949e;
+    --accent: #58a6ff;
+    --green: #3fb950;
+    --red: #f85149;
+    --yellow: #d29922;
+    --cursor: #58a6ff;
+  }
+
+  body {
+    font-family: 'SF Mono', 'Fira Code', 'JetBrains Mono', 'Cascadia Code', monospace;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 2rem 1rem;
+  }
+
+  h1 {
+    font-size: 1.8rem;
+    margin-bottom: 0.3rem;
+    color: var(--accent);
+    font-weight: 700;
+    letter-spacing: -0.5px;
+  }
+
+  .subtitle {
+    color: var(--text-dim);
+    font-size: 0.85rem;
+    margin-bottom: 2rem;
+  }
+
+  /* Category selector */
+  .categories {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    justify-content: center;
+    margin-bottom: 1.5rem;
+    max-width: 700px;
+  }
+
+  .cat-btn {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--text-dim);
+    padding: 0.4rem 0.9rem;
+    border-radius: 6px;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 0.8rem;
+    transition: all 0.15s;
+  }
+
+  .cat-btn:hover { border-color: var(--accent); color: var(--text); }
+  .cat-btn.active { background: var(--accent); color: #0d1117; border-color: var(--accent); font-weight: 600; }
+
+  /* Stats bar */
+  .stats {
+    display: flex;
+    gap: 2rem;
+    margin-bottom: 1.5rem;
+    padding: 0.8rem 1.5rem;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+  }
+
+  .stat-item { text-align: center; }
+  .stat-label { font-size: 0.65rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: 1px; }
+  .stat-value { font-size: 1.4rem; font-weight: 700; color: var(--accent); margin-top: 2px; }
+  .stat-value.accuracy { color: var(--green); }
+  .stat-value.errors { color: var(--red); }
+  .stat-value.combo { color: var(--yellow); }
+
+  /* Typing area */
+  .typing-area {
+    width: 100%;
+    max-width: 750px;
+    margin-bottom: 1.5rem;
+  }
+
+  .prompt-label {
+    font-size: 0.7rem;
+    color: var(--text-dim);
+    margin-bottom: 0.5rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .prompt-label .tag {
+    background: var(--border);
+    padding: 0.15rem 0.5rem;
+    border-radius: 4px;
+    font-size: 0.65rem;
+  }
+
+  .prompt-box {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 1.5rem 1.8rem;
+    font-size: 1.5rem;
+    line-height: 1.8;
+    letter-spacing: 0.5px;
+    min-height: 80px;
+    display: flex;
+    align-items: center;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .prompt-box .char {
+    display: inline-block;
+    transition: color 0.05s;
+    position: relative;
+  }
+
+  .char.correct { color: var(--green); }
+  .char.incorrect { color: var(--red); text-decoration: underline; }
+  .char.current { color: var(--text); }
+  .char.current::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    bottom: 0;
+    width: 100%;
+    height: 2px;
+    background: var(--cursor);
+    animation: blink 1s step-end infinite;
+  }
+  .char.pending { color: var(--text-dim); }
+
+  @keyframes blink {
+    50% { opacity: 0; }
+  }
+
+  /* Hidden input */
+  #typing-input {
+    position: absolute;
+    opacity: 0;
+    width: 0;
+    height: 0;
+  }
+
+  .click-hint {
+    font-size: 0.75rem;
+    color: var(--text-dim);
+    text-align: center;
+    margin-top: 0.6rem;
+    opacity: 0.7;
+  }
+
+  /* Description */
+  .description {
+    width: 100%;
+    max-width: 750px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 0.8rem 1.2rem;
+    margin-bottom: 1.5rem;
+    font-size: 0.8rem;
+    color: var(--text-dim);
+    line-height: 1.5;
+  }
+
+  .description strong { color: var(--text); }
+
+  /* Progress */
+  .progress-bar {
+    width: 100%;
+    max-width: 750px;
+    height: 4px;
+    background: var(--border);
+    border-radius: 2px;
+    margin-bottom: 1.5rem;
+    overflow: hidden;
+  }
+
+  .progress-fill {
+    height: 100%;
+    background: var(--accent);
+    border-radius: 2px;
+    transition: width 0.3s ease;
+    width: 0%;
+  }
+
+  /* Result modal */
+  .result-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.7);
+    z-index: 100;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .result-overlay.show { display: flex; }
+
+  .result-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 2.5rem;
+    text-align: center;
+    max-width: 400px;
+    width: 90%;
+  }
+
+  .result-card h2 { font-size: 1.3rem; margin-bottom: 1.5rem; color: var(--accent); }
+
+  .result-stats {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+    margin-bottom: 2rem;
+  }
+
+  .result-stat {
+    background: var(--bg);
+    padding: 0.8rem;
+    border-radius: 8px;
+  }
+
+  .result-stat .label { font-size: 0.65rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: 1px; }
+  .result-stat .value { font-size: 1.5rem; font-weight: 700; margin-top: 4px; }
+
+  .restart-btn {
+    background: var(--accent);
+    color: #0d1117;
+    border: none;
+    padding: 0.7rem 2rem;
+    border-radius: 8px;
+    font-family: inherit;
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: opacity 0.15s;
+  }
+
+  .restart-btn:hover { opacity: 0.85; }
+
+  /* Keyboard visual */
+  .keyboard-hint {
+    font-size: 0.7rem;
+    color: var(--text-dim);
+    margin-top: 1rem;
+  }
+
+  .keyboard-hint kbd {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    padding: 0.15rem 0.4rem;
+    border-radius: 3px;
+    font-size: 0.65rem;
+  }
+
+  /* Recent words list */
+  .recent-words {
+    width: 100%;
+    max-width: 750px;
+    margin-top: 0.5rem;
+  }
+
+  .recent-words h3 {
+    font-size: 0.75rem;
+    color: var(--text-dim);
+    margin-bottom: 0.5rem;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+
+  .word-history {
+    display: flex;
+    gap: 0.4rem;
+    flex-wrap: wrap;
+  }
+
+  .word-chip {
+    font-size: 0.75rem;
+    padding: 0.25rem 0.6rem;
+    border-radius: 4px;
+    border: 1px solid var(--border);
+  }
+
+  .word-chip.perfect { border-color: var(--green); color: var(--green); }
+  .word-chip.had-errors { border-color: var(--red); color: var(--red); }
+</style>
+</head>
+<body>
+
+<h1>&gt;_ DevType</h1>
+<p class="subtitle">Type dev commands to level up your muscle memory</p>
+
+<div class="categories" id="categories"></div>
+
+<div class="stats">
+  <div class="stat-item">
+    <div class="stat-label">WPM</div>
+    <div class="stat-value" id="wpm">0</div>
+  </div>
+  <div class="stat-item">
+    <div class="stat-label">Accuracy</div>
+    <div class="stat-value accuracy" id="accuracy">100%</div>
+  </div>
+  <div class="stat-item">
+    <div class="stat-label">Errors</div>
+    <div class="stat-value errors" id="errors">0</div>
+  </div>
+  <div class="stat-item">
+    <div class="stat-label">Combo</div>
+    <div class="stat-value combo" id="combo">0</div>
+  </div>
+  <div class="stat-item">
+    <div class="stat-label">Done</div>
+    <div class="stat-value" id="done">0/0</div>
+  </div>
+</div>
+
+<div class="progress-bar"><div class="progress-fill" id="progress"></div></div>
+
+<div class="typing-area" id="typing-area">
+  <div class="prompt-label">
+    <span id="prompt-category" class="tag">git</span>
+    <span id="prompt-index">1 / 10</span>
+  </div>
+  <div class="prompt-box" id="prompt-box"></div>
+  <input type="text" id="typing-input" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false">
+  <div class="click-hint">Click here or press any key to start typing</div>
+</div>
+
+<div class="description" id="description"></div>
+
+<div class="recent-words" id="recent-section" style="display:none">
+  <h3>History</h3>
+  <div class="word-history" id="word-history"></div>
+</div>
+
+<div class="keyboard-hint">
+  <kbd>Tab</kbd> skip word &nbsp; <kbd>Esc</kbd> restart round
+</div>
+
+<div class="result-overlay" id="result-overlay">
+  <div class="result-card">
+    <h2>Round Complete!</h2>
+    <div class="result-stats">
+      <div class="result-stat">
+        <div class="label">WPM</div>
+        <div class="value" id="r-wpm" style="color:var(--accent)">0</div>
+      </div>
+      <div class="result-stat">
+        <div class="label">Accuracy</div>
+        <div class="value" id="r-accuracy" style="color:var(--green)">0%</div>
+      </div>
+      <div class="result-stat">
+        <div class="label">Best Combo</div>
+        <div class="value" id="r-combo" style="color:var(--yellow)">0</div>
+      </div>
+      <div class="result-stat">
+        <div class="label">Time</div>
+        <div class="value" id="r-time" style="color:var(--text)">0s</div>
+      </div>
+    </div>
+    <button class="restart-btn" id="restart-btn">Next Round</button>
+  </div>
+</div>
+
+<script>
+const WORDS = {
+  "Git": [
+    { text: "git init", desc: "Initialize a new Git repository in the current directory" },
+    { text: "git clone", desc: "Clone a remote repository to your local machine" },
+    { text: "git add .", desc: "Stage all changed files for the next commit" },
+    { text: "git commit -m", desc: "Create a commit with a message flag" },
+    { text: "git push origin main", desc: "Push local commits to the main branch on remote" },
+    { text: "git pull --rebase", desc: "Pull remote changes and rebase local commits on top" },
+    { text: "git checkout -b feature", desc: "Create and switch to a new branch called 'feature'" },
+    { text: "git merge --no-ff", desc: "Merge with a merge commit even if fast-forward is possible" },
+    { text: "git stash pop", desc: "Apply the most recent stash and remove it from the stash list" },
+    { text: "git log --oneline", desc: "Show commit history in a condensed one-line format" },
+    { text: "git rebase -i HEAD~3", desc: "Interactively rebase the last 3 commits" },
+    { text: "git diff --staged", desc: "Show changes that are staged for the next commit" },
+    { text: "git reset --soft HEAD~1", desc: "Undo last commit but keep changes staged" },
+    { text: "git remote add origin", desc: "Add a remote repository named 'origin'" },
+    { text: "git cherry-pick abc123", desc: "Apply a specific commit from another branch" },
+    { text: "git bisect start", desc: "Start binary search to find the commit that introduced a bug" },
+    { text: "git tag -a v1.0.0 -m", desc: "Create an annotated tag with a message" },
+    { text: "git branch -d feature", desc: "Delete a local branch that has been merged" },
+    { text: "git fetch --prune", desc: "Fetch remote refs and remove stale remote-tracking branches" },
+    { text: "git worktree add ../fix", desc: "Create a linked worktree for parallel development" },
+  ],
+  "Docker": [
+    { text: "docker build -t app .", desc: "Build an image tagged 'app' from the current directory" },
+    { text: "docker run -d -p 3000:3000", desc: "Run a container in detached mode with port mapping" },
+    { text: "docker compose up -d", desc: "Start all services defined in docker-compose.yml in background" },
+    { text: "docker exec -it container bash", desc: "Open an interactive bash shell inside a running container" },
+    { text: "docker ps -a", desc: "List all containers including stopped ones" },
+    { text: "docker logs -f container", desc: "Follow the live log output of a container" },
+    { text: "docker volume create data", desc: "Create a named volume for persistent storage" },
+    { text: "docker network create mynet", desc: "Create a custom bridge network" },
+    { text: "docker system prune -af", desc: "Remove all unused images, containers, and networks" },
+    { text: "docker compose down -v", desc: "Stop services and remove volumes" },
+    { text: "docker pull postgres:16", desc: "Download the PostgreSQL 16 image from Docker Hub" },
+    { text: "docker inspect --format", desc: "Display detailed information with Go template formatting" },
+    { text: "docker cp file.txt container:/app", desc: "Copy a file from host into a running container" },
+    { text: "docker image ls --filter", desc: "List images with a filter expression" },
+    { text: "docker buildx build --platform", desc: "Build multi-platform images with BuildKit" },
+  ],
+  "npm/Node": [
+    { text: "npm init -y", desc: "Create a package.json with default values" },
+    { text: "npm install express", desc: "Install Express.js as a dependency" },
+    { text: "npm run dev", desc: "Run the 'dev' script defined in package.json" },
+    { text: "npx create-next-app@latest", desc: "Scaffold a new Next.js project using npx" },
+    { text: "npm install -D typescript", desc: "Install TypeScript as a dev dependency" },
+    { text: "npm audit fix --force", desc: "Automatically fix security vulnerabilities" },
+    { text: "npm cache clean --force", desc: "Clear the npm cache completely" },
+    { text: "npm list --depth=0", desc: "Show only top-level installed packages" },
+    { text: "npx tsx watch src/index.ts", desc: "Run and watch a TypeScript file with tsx" },
+    { text: "npm version patch", desc: "Bump the patch version number in package.json" },
+    { text: "npm pack --dry-run", desc: "Preview what files would be included in the published package" },
+    { text: "npm outdated", desc: "Check for packages that have newer versions available" },
+  ],
+  "Shell": [
+    { text: "chmod +x script.sh", desc: "Make a shell script executable" },
+    { text: "curl -s https://api.example.com", desc: "Make a silent HTTP GET request" },
+    { text: "grep -rn 'TODO' src/", desc: "Recursively search for 'TODO' with line numbers" },
+    { text: "find . -name '*.log' -delete", desc: "Find and delete all .log files recursively" },
+    { text: "tar -czf archive.tar.gz dir/", desc: "Create a gzipped tar archive of a directory" },
+    { text: "ssh user@192.168.1.100", desc: "Connect to a remote server via SSH" },
+    { text: "scp file.txt user@host:/path", desc: "Copy a file to a remote server" },
+    { text: "cat .env | sort", desc: "Display env file contents sorted alphabetically" },
+    { text: "kill -9 $(lsof -t -i:3000)", desc: "Kill the process occupying port 3000" },
+    { text: "xargs -I {} echo {}", desc: "Execute a command for each line of input" },
+    { text: "awk '{print $1}' access.log", desc: "Print the first column from each line of a file" },
+    { text: "sed -i 's/old/new/g' file.txt", desc: "Replace all occurrences of 'old' with 'new' in-place" },
+    { text: "tail -f /var/log/syslog", desc: "Follow new lines appended to a log file in real time" },
+    { text: "wc -l src/**/*.ts", desc: "Count lines of code in all TypeScript files" },
+    { text: "du -sh node_modules/", desc: "Show total size of node_modules in human-readable format" },
+  ],
+  "Python": [
+    { text: "python -m venv .venv", desc: "Create a virtual environment in .venv directory" },
+    { text: "pip install -r requirements.txt", desc: "Install all packages listed in requirements.txt" },
+    { text: "pytest -v --tb=short", desc: "Run tests with verbose output and short tracebacks" },
+    { text: "uvicorn main:app --reload", desc: "Start a FastAPI server with hot reload" },
+    { text: "python -m http.server 8080", desc: "Start a simple HTTP server on port 8080" },
+    { text: "pip freeze > requirements.txt", desc: "Export installed packages to requirements file" },
+    { text: "flask run --debug", desc: "Start Flask development server in debug mode" },
+    { text: "black --check .", desc: "Check code formatting without making changes" },
+    { text: "mypy --strict src/", desc: "Run strict type checking on the src directory" },
+    { text: "ruff check --fix .", desc: "Lint and auto-fix Python files with Ruff" },
+  ],
+  "Kubernetes": [
+    { text: "kubectl get pods -A", desc: "List all pods across all namespaces" },
+    { text: "kubectl apply -f deploy.yaml", desc: "Create or update resources from a YAML file" },
+    { text: "kubectl logs -f pod/app", desc: "Follow the log output of a pod" },
+    { text: "kubectl exec -it pod/app -- sh", desc: "Open an interactive shell in a running pod" },
+    { text: "kubectl scale deploy app --replicas=3", desc: "Scale a deployment to 3 replicas" },
+    { text: "kubectl rollout restart deploy/app", desc: "Trigger a rolling restart of a deployment" },
+    { text: "kubectl port-forward svc/db 5432", desc: "Forward local port to a service in the cluster" },
+    { text: "kubectl describe node", desc: "Show detailed info about cluster nodes" },
+    { text: "kubectl config use-context prod", desc: "Switch kubectl to the 'prod' cluster context" },
+    { text: "kubectl delete pod --grace-period=0", desc: "Force-delete a pod immediately" },
+    { text: "helm install app ./chart", desc: "Install a Helm chart from a local directory" },
+    { text: "helm upgrade --install app ./chart", desc: "Upgrade or install a Helm release" },
+  ],
+  "SQL": [
+    { text: "SELECT * FROM users WHERE id = 1;", desc: "Query a specific user by their ID" },
+    { text: "CREATE TABLE posts (id SERIAL PRIMARY KEY);", desc: "Create a table with auto-incrementing primary key" },
+    { text: "ALTER TABLE users ADD COLUMN email TEXT;", desc: "Add a new column to an existing table" },
+    { text: "INSERT INTO users (name) VALUES ('nest');", desc: "Insert a new row into the users table" },
+    { text: "UPDATE users SET active = true WHERE id = 1;", desc: "Update a specific row in the table" },
+    { text: "DELETE FROM sessions WHERE expires_at < NOW();", desc: "Remove expired session records" },
+    { text: "CREATE INDEX idx_email ON users(email);", desc: "Create an index for faster email lookups" },
+    { text: "SELECT COUNT(*) FROM orders GROUP BY status;", desc: "Count orders grouped by their status" },
+    { text: "JOIN orders ON users.id = orders.user_id", desc: "Join users table with orders on user ID" },
+    { text: "EXPLAIN ANALYZE SELECT * FROM logs;", desc: "Show query execution plan with timing" },
+  ],
+  "TypeScript": [
+    { text: "interface User { id: number; name: string; }", desc: "Define a TypeScript interface for a User" },
+    { text: "const fn = async (): Promise<void> => {}", desc: "Declare an async arrow function returning void" },
+    { text: "type Result<T> = { data: T; error: null }", desc: "Define a generic Result type with data and error" },
+    { text: "export default function handler()", desc: "Export a default function (common in Next.js)" },
+    { text: "Record<string, unknown>", desc: "Type for an object with string keys and unknown values" },
+    { text: "as const satisfies Config", desc: "Assert const and validate against a type" },
+    { text: "Omit<User, 'password'>", desc: "Create a type excluding the password field" },
+    { text: "keyof typeof config", desc: "Get union type of an object's keys" },
+    { text: "z.object({ name: z.string() })", desc: "Define a Zod schema for runtime validation" },
+    { text: "type Props = React.ComponentProps<'input'>", desc: "Extract props type from an HTML input element" },
+  ],
+  "Vim": [
+    { text: ":wq", desc: "Save and quit Vim" },
+    { text: ":q!", desc: "Quit without saving changes" },
+    { text: "dd", desc: "Delete (cut) the current line" },
+    { text: "yy", desc: "Yank (copy) the current line" },
+    { text: "p", desc: "Paste after the cursor position" },
+    { text: "ciw", desc: "Change inner word - delete word and enter insert mode" },
+    { text: ":%s/old/new/gc", desc: "Find and replace with confirmation across the file" },
+    { text: "/pattern", desc: "Search forward for a pattern" },
+    { text: ":set number", desc: "Show line numbers in the editor" },
+    { text: "gg=G", desc: "Auto-indent the entire file" },
+    { text: "ctrl+w v", desc: "Split window vertically" },
+    { text: ":e ~/.zshrc", desc: "Open a file in the current buffer" },
+  ],
+};
+
+// --- Game State ---
+let currentCategory = "Git";
+let wordList = [];
+let wordIndex = 0;
+let charIndex = 0;
+let startTime = null;
+let totalChars = 0;
+let correctChars = 0;
+let errorCount = 0;
+let currentCombo = 0;
+let bestCombo = 0;
+let history = [];
+let currentWordErrors = 0;
+const ROUND_SIZE = 10;
+
+// --- DOM ---
+const $categories = document.getElementById("categories");
+const $promptBox = document.getElementById("prompt-box");
+const $input = document.getElementById("typing-input");
+const $wpm = document.getElementById("wpm");
+const $accuracy = document.getElementById("accuracy");
+const $errors = document.getElementById("errors");
+const $combo = document.getElementById("combo");
+const $done = document.getElementById("done");
+const $progress = document.getElementById("progress");
+const $desc = document.getElementById("description");
+const $catTag = document.getElementById("prompt-category");
+const $promptIdx = document.getElementById("prompt-index");
+const $overlay = document.getElementById("result-overlay");
+const $recentSection = document.getElementById("recent-section");
+const $wordHistory = document.getElementById("word-history");
+
+// --- Init categories ---
+function renderCategories() {
+  $categories.innerHTML = "";
+  for (const cat of Object.keys(WORDS)) {
+    const btn = document.createElement("button");
+    btn.className = "cat-btn" + (cat === currentCategory ? " active" : "");
+    btn.textContent = cat;
+    btn.onclick = () => {
+      currentCategory = cat;
+      startRound();
+    };
+    $categories.appendChild(btn);
+  }
+}
+
+function shuffle(arr) {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+function startRound() {
+  wordList = shuffle(WORDS[currentCategory]).slice(0, ROUND_SIZE);
+  wordIndex = 0;
+  charIndex = 0;
+  startTime = null;
+  totalChars = 0;
+  correctChars = 0;
+  errorCount = 0;
+  currentCombo = 0;
+  bestCombo = 0;
+  history = [];
+  currentWordErrors = 0;
+  $overlay.classList.remove("show");
+  renderCategories();
+  renderWord();
+  updateStats();
+  $recentSection.style.display = "none";
+  $wordHistory.innerHTML = "";
+  $input.value = "";
+  $input.focus();
+}
+
+function renderWord() {
+  if (wordIndex >= wordList.length) {
+    showResult();
+    return;
+  }
+  const word = wordList[wordIndex];
+  $catTag.textContent = currentCategory;
+  $promptIdx.textContent = `${wordIndex + 1} / ${wordList.length}`;
+  $desc.innerHTML = `<strong>${word.text}</strong> &mdash; ${word.desc}`;
+  $done.textContent = `${wordIndex}/${wordList.length}`;
+  $progress.style.width = `${(wordIndex / wordList.length) * 100}%`;
+
+  // Render chars
+  $promptBox.innerHTML = "";
+  for (let i = 0; i < word.text.length; i++) {
+    const span = document.createElement("span");
+    span.className = "char " + (i === 0 ? "current" : "pending");
+    span.textContent = word.text[i];
+    $promptBox.appendChild(span);
+  }
+}
+
+function updateStats() {
+  if (startTime) {
+    const elapsed = (Date.now() - startTime) / 1000 / 60; // minutes
+    const wpm = elapsed > 0 ? Math.round((correctChars / 5) / elapsed) : 0;
+    $wpm.textContent = wpm;
+  }
+  const acc = totalChars > 0 ? Math.round((correctChars / totalChars) * 100) : 100;
+  $accuracy.textContent = acc + "%";
+  $errors.textContent = errorCount;
+  $combo.textContent = currentCombo;
+}
+
+// --- Input handling ---
+$input.addEventListener("input", (e) => {
+  if (wordIndex >= wordList.length) return;
+  if (!startTime) startTime = Date.now();
+
+  const word = wordList[wordIndex];
+  const typed = $input.value;
+  charIndex = typed.length;
+
+  // Re-render chars
+  const chars = $promptBox.querySelectorAll(".char");
+  for (let i = 0; i < chars.length; i++) {
+    if (i < typed.length) {
+      if (typed[i] === word.text[i]) {
+        chars[i].className = "char correct";
+      } else {
+        chars[i].className = "char incorrect";
+      }
+    } else if (i === typed.length) {
+      chars[i].className = "char current";
+    } else {
+      chars[i].className = "char pending";
+    }
+  }
+
+  // Check last typed char
+  if (typed.length > 0) {
+    const lastIdx = typed.length - 1;
+    totalChars++;
+    if (typed[lastIdx] === word.text[lastIdx]) {
+      correctChars++;
+      currentCombo++;
+      if (currentCombo > bestCombo) bestCombo = currentCombo;
+    } else {
+      errorCount++;
+      currentWordErrors++;
+      currentCombo = 0;
+    }
+  }
+
+  // Word complete
+  if (typed === word.text) {
+    completeWord(false);
+  }
+
+  updateStats();
+});
+
+$input.addEventListener("keydown", (e) => {
+  if (e.key === "Tab") {
+    e.preventDefault();
+    completeWord(true);
+  }
+  if (e.key === "Escape") {
+    e.preventDefault();
+    startRound();
+  }
+});
+
+function completeWord(skipped) {
+  const word = wordList[wordIndex];
+  history.push({
+    text: word.text,
+    perfect: currentWordErrors === 0 && !skipped,
+    skipped,
+  });
+
+  // Show history
+  $recentSection.style.display = "block";
+  const chip = document.createElement("span");
+  chip.className = "word-chip " + (currentWordErrors === 0 && !skipped ? "perfect" : "had-errors");
+  chip.textContent = skipped ? `[skip] ${word.text}` : word.text;
+  $wordHistory.appendChild(chip);
+
+  currentWordErrors = 0;
+  wordIndex++;
+  charIndex = 0;
+  $input.value = "";
+
+  if (wordIndex >= wordList.length) {
+    showResult();
+  } else {
+    renderWord();
+  }
+}
+
+function showResult() {
+  const elapsed = startTime ? (Date.now() - startTime) / 1000 : 0;
+  const minutes = elapsed / 60;
+  const wpm = minutes > 0 ? Math.round((correctChars / 5) / minutes) : 0;
+  const acc = totalChars > 0 ? Math.round((correctChars / totalChars) * 100) : 100;
+
+  document.getElementById("r-wpm").textContent = wpm;
+  document.getElementById("r-accuracy").textContent = acc + "%";
+  document.getElementById("r-combo").textContent = bestCombo;
+  document.getElementById("r-time").textContent = Math.round(elapsed) + "s";
+
+  $progress.style.width = "100%";
+  $done.textContent = `${wordList.length}/${wordList.length}`;
+  $overlay.classList.add("show");
+}
+
+document.getElementById("restart-btn").onclick = () => startRound();
+
+// Focus input on click anywhere in typing area
+document.getElementById("typing-area").onclick = () => $input.focus();
+document.addEventListener("keydown", (e) => {
+  if (!e.ctrlKey && !e.metaKey && !e.altKey && e.key.length === 1) {
+    $input.focus();
+  }
+});
+
+// Start
+startRound();
+</script>
+</body>
+</html>
